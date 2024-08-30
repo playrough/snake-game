@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Snake Game</title>
+		<style>
+			body {
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				height: 100vh;
+				margin: 0;
+				padding: 0;
+				background-color: #212830;
+			}
+
+			td {
+				width: 10px;
+				height: 10px;
+				border-radius: 2px;
+				background-color: #161b22;
+				outline-offset: -1px;
+			}
+
+			.snake-body {
+				background-color: rgba(38, 166, 65, 1);
+				position: relative;
+				outline: 1px solid rgba(255, 255, 255, 0.4);
+			}
+
+			.snake-head {
+				box-shadow: 0 0 20px #00ff00, 0 0 30px #00ff00, 0 0 40px #00ff00;
+			}
+
+			.food-item {
+				background-color: #ff4646;
+				box-shadow: 0 0 20px #ff0000, 0 0 30px #ff0000, 0 0 40px #ff0000;
+				outline: 1px solid rgba(255, 255, 255, 0.5);
+				position: relative;
+				animation: heartbeat 1.5s ease-in-out infinite;
+			}
+
+			@keyframes heartbeat {
+				0% {
+					transform: scale(1);
+				}
+				25% {
+					transform: scale(1.2);
+				}
+				50% {
+					transform: scale(1);
+				}
+				75% {
+					transform: scale(1.2);
+				}
+				100% {
+					transform: scale(1);
+				}
+			}
+
+			.opacity-0-7 {
+				background-color: rgba(38, 166, 65, 0.7);
+				outline: 1px solid rgba(255, 255, 255, 0.2);
+			}
+
+			.opacity-0-4 {
+				background-color: rgba(38, 166, 65, 0.4);
+				outline: 1px solid rgba(255, 255, 255, 0.1);
+			}
+
+			.opacity-0-1 {
+				background-color: rgba(38, 166, 65, 0.1);
+				outline: 1px solid rgba(255, 255, 255, 0.05);
+			}
+		</style>
+	</head>
+	<body>
+		<div id="game-board"></div>
+
+		<script>
+			const BOARD_ROWS = 7;
+			const BOARD_COLUMNS = 30;
+			const GAME_SPEED_MS = 100;
+
+			let snakeSegments;
+			let currentDirection;
+			let foodPosition;
+
+			function startGame() {
+				createBoard();
+				initializeGame();
+				document.addEventListener('keydown', handleDirectionChange);
+
+				// Start the movement of the snake
+				setInterval(moveSnake, GAME_SPEED_MS);
+			}
+
+			function createBoard() {
+				const table = document.createElement('table');
+				for (let y = 0; y <= BOARD_ROWS; y++) {
+					const row = document.createElement('tr');
+					for (let x = 0; x <= BOARD_COLUMNS; x++) {
+						const cell = document.createElement('td');
+						cell.setAttribute('data-position-y', y);
+						cell.setAttribute('data-position-x', x);
+						row.appendChild(cell);
+					}
+					table.appendChild(row);
+				}
+				document.getElementById('game-board').appendChild(table);
+			}
+
+			function initializeGame() {
+				snakeSegments = [
+					{ x: 3, y: 0 },
+					{ x: 2, y: 0 },
+					{ x: 1, y: 0 },
+					{ x: 0, y: 0 },
+				];
+				currentDirection = 'LEFT';
+				foodPosition = generateFood();
+				renderGame();
+			}
+
+			function generateFood() {
+				let food;
+				do {
+					food = {
+						x: Math.floor(Math.random() * (BOARD_COLUMNS + 1)),
+						y: Math.floor(Math.random() * (BOARD_ROWS + 1)),
+					};
+				} while (snakeSegments.some(segment => isEqual(segment, food)));
+				return food;
+			}
+
+			function isEqual(point1, point2) {
+				return point1.x === point2.x && point1.y === point2.y;
+			}
+
+			function getCellSelector(x, y) {
+				return `[data-position-x="${x}"][data-position-y="${y}"]`;
+			}
+
+			function handleDirectionChange(event) {
+				const directionMap = {
+					37: 'RIGHT',
+					38: 'UP',
+					39: 'LEFT',
+					40: 'DOWN',
+				};
+
+				const forbiddenDirections = {
+					37: 'LEFT',
+					38: 'DOWN',
+					39: 'RIGHT',
+					40: 'UP',
+				};
+				if (directionMap[event.keyCode] && forbiddenDirections[event.keyCode] !== currentDirection) {
+					currentDirection = directionMap[event.keyCode];
+				}
+			}
+
+			function moveSnake() {
+				let head = { ...snakeSegments[0] };
+
+				const directionActions = {
+					UP: () => (head.y = (head.y - 1 + BOARD_ROWS + 1) % (BOARD_ROWS + 1)),
+					DOWN: () => (head.y = (head.y + 1) % (BOARD_ROWS + 1)),
+					LEFT: () => (head.x = (head.x + 1) % (BOARD_COLUMNS + 1)),
+					RIGHT: () => (head.x = (head.x - 1 + BOARD_COLUMNS + 1) % (BOARD_COLUMNS + 1)),
+				};
+
+				directionActions[currentDirection]();
+				snakeSegments.unshift(head);
+
+				if (isEqual(head, foodPosition)) {
+					foodPosition = generateFood();
+				} else {
+					snakeSegments.pop();
+				}
+
+				if (snakeSegments.slice(1).some(segment => isEqual(segment, head))) {
+					initializeGame();
+					return;
+				}
+
+				renderGame();
+			}
+
+			function renderGame() {
+				document.querySelectorAll('td').forEach(td => (td.className = ''));
+
+				snakeSegments.forEach((segment, index) => {
+					const cell = document.querySelector(getCellSelector(segment.x, segment.y));
+					if (cell) {
+						cell.classList.add('snake-body');
+					}
+
+					if (index === 0) {
+						cell.classList.add('snake-head');
+					}
+
+					const opacityClasses = ['opacity-0-1', 'opacity-0-4', 'opacity-0-7'];
+					if (opacityClasses[snakeSegments.length - index - 1]) {
+						cell.classList.add(opacityClasses[snakeSegments.length - index - 1]);
+					}
+				});
+
+				const foodCell = document.querySelector(getCellSelector(foodPosition.x, foodPosition.y));
+				if (foodCell) {
+					foodCell.classList.add('food-item');
+				}
+			}
+
+			startGame();
+		</script>
+	</body>
+</html>
